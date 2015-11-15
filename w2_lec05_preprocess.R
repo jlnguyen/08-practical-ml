@@ -27,17 +27,17 @@ trainCapAveS <- (trainCapAve - mean(trainCapAve)) / sd(trainCapAve)
 mean(trainCapAveS)
 sd(trainCapAveS)
 
-# Standardising test set
+# Standardising test set -> have to standardise using "trainCapAve" (instead of test data)
 testCapAve <- testing$capitalAve
-testCapAveS <- (testCapAve - mean(testCapAve)) / sd(testCapAve)
+testCapAveS <- (testCapAve - mean(trainCapAve)) / sd(trainCapAve)
 mean(testCapAveS)
 sd(testCapAveS)
 
 ## Standardising using 'preProcess' (col 58 is label col: (nonspam, spam))
 preObj <- preProcess(training[,-58], method = c("center", "scale"))
 trainCapAveS <- predict(preObj, training[,-58])$capitalAve
-mean(testCapAveS)
-sd(testCapAveS)
+mean(trainCapAveS)
+sd(trainCapAveS)
 
 testCapAveS <- predict(preObj, testing[,-58])$capitalAve
 mean(testCapAveS)
@@ -69,6 +69,7 @@ training$capAve <- training$capitalAve
 selectNA <- rbinom(dim(training)[1], size = 1, prob = 0.05) == 1
 training$capAve[selectNA] <- NA
 
+## Now handle missing data ##
 # Impute and standardise
 preObj <- preProcess(training[,-58], method = "knnImpute")
 capAve <- predict(preObj, training[,-58])$capAve
