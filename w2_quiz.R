@@ -108,4 +108,11 @@ modB
 testPc <- predict(preProc, testing[,-1])
 confusionMatrix(testing$diagnosis, predict(modB, testPc))
 
+# ## Alternative:
+# modB <- train(diagnosis ~ ., method = "glm",
+#               trControl = trainControl(method = "pca",
+#                                        thresh = 0.8),
+#               data = trainingIL)
+# modB
+# confusionMatrix(testing$diagnosis, predict(modB, testing))
 
