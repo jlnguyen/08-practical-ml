@@ -46,11 +46,3 @@ qplot(Petal.Width, Petal.Length, col = Species, shape = predRight,
       data = testing,
       main = "newdata Predictions")
 
-
-
-
-
-
-
-
-

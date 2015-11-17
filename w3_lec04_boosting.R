@@ -28,5 +28,6 @@ training <- Wage[idxTrain,]; testing <- Wage[-idxTrain,]
 modFit <- train(wage ~ ., method = "gbm", data = training, verbose = FALSE)
 modFit
 
+# Predicted wage (x) vs true wage (y)
 qplot(predict(modFit, testing), wage, data = testing)
 
