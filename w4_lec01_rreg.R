@@ -19,10 +19,12 @@ data(prostate)
 covnames <- names(prostate[-(9:10)])
 y <- prostate$lpsa
 x <- prostate[,covnames]
+table(prostate$train)
 
 form <- as.formula(paste("lpsa~", paste(covnames, collapse="+"), sep=""))
 summary(lm(form, data=prostate[prostate$train,]))
 
+# Permute (sample w/o replacement)
 set.seed(1)
 train.ind <- sample(nrow(prostate), ceiling(nrow(prostate))/2)
 y.test <- prostate$lpsa[-train.ind]
@@ -30,11 +32,14 @@ x.test <- x[-train.ind,]
 
 y <- prostate$lpsa[train.ind]
 x <- x[train.ind,]
+dim(x.test); dim(x)
 
+# Compute rss for training and test sets
 p <- length(covnames)
 rss <- list()
 for (i in 1:p) {
     cat(i)
+    # print(i)
     Index <- combn(p,i)
     
     rss[[i]] <- apply(Index, 2, function(is) {
@@ -49,7 +54,7 @@ for (i in 1:p) {
     })
 }
 
-png("Plots/selection-plots-01.png", height=432, width=432, pointsize=12)
+# png("Plots/selection-plots-01.png", height=432, width=432, pointsize=12)
 plot(1:p, 1:p, type="n", ylim=range(unlist(rss)), xlim=c(0,p), xlab="number of predictors", ylab="residual sum of squares", main="Prostate cancer data")
 for (i in 1:p) {
     points(rep(i-0.15, ncol(rss[[i]])), rss[[i]][1, ], col="blue")
@@ -60,7 +65,8 @@ lines((1:p)-0.15, minrss, col="blue", lwd=1.7)
 minrss <- sapply(rss, function(x) min(x[2,]))
 lines((1:p)+0.15, minrss, col="red", lwd=1.7)
 legend("topright", c("Train", "Test"), col=c("blue", "red"), pch=1)
-dev.off()
+# dev.off()
+
 
 ##
 # ridge regression on prostate dataset
@@ -86,39 +92,37 @@ for(i in 1:M){
     test.rss[i] <- sum((y.test - yhat)^2)
 }
 
-png(file="Plots/selection-plots-02.png", width=432, height=432, pointsize=12) 
+# png(file="Plots/selection-plots-02.png", width=432, height=432, pointsize=12) 
 plot(lambdas,test.rss,type="l",col="red",lwd=2,ylab="RSS",ylim=range(train.rss,test.rss))
 lines(lambdas,train.rss,col="blue",lwd=2,lty=2)
 best.lambda <- lambdas[which.min(test.rss)]
 abline(v=best.lambda+1/9)
 legend(30,30,c("Train","Test"),col=c("blue","red"),lty=c(2,1))
-dev.off()
+# dev.off()
 
 
-png(file="Plots/selection-plots-03.png", width=432, height=432, pointsize=8) 
+# png(file="Plots/selection-plots-03.png", width=432, height=432, pointsize=8) 
 plot(lambdas,betas[1,],ylim=range(betas),type="n",ylab="Coefficients")
 for(i in 1:ncol(x))
     lines(lambdas,betas[i,],type="b",lty=i,pch=as.character(i))
 abline(h=0)
 legend("topright",covnames,pch=as.character(1:8))
-dev.off()
+# dev.off()
 
 
 #######
-# lasso
+# lasso -> using Least Angle Regression
 library(lars)
 lasso.fit <- lars(as.matrix(x), y, type="lasso", trace=TRUE)
 
-png(file="Plots/selection-plots-04.png", width=432, height=432, pointsize=8) 
+# png(file="Plots/selection-plots-04.png", width=432, height=432, pointsize=8)
 plot(lasso.fit, breaks=FALSE)
-legend("topleft", covnames, pch=8, lty=1:length(covnames), col=1:length(covnames))
-dev.off()
+par(xpd = TRUE)
+legend("topleft", inset = c(0.0,-0.5), covnames, pch=8, lty=1:length(covnames), col=1:length(covnames))
+# dev.off()
 
 # this plots the cross validation curve
-png(file="Plots/selection-plots-05.png", width=432, height=432, pointsize=12) 
+# png(file="Plots/selection-plots-05.png", width=432, height=432, pointsize=12) 
 lasso.cv <- cv.lars(as.matrix(x), y, K=10, type="lasso", trace=TRUE)
-dev.off()
-
-
-
+# dev.off()
 
