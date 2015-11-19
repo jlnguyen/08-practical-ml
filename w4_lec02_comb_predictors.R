@@ -41,11 +41,23 @@ modComb <- train(wage ~ ., method = "gam", data = predDf)
 # Prediction on prediction data
 predComb <- predict(modComb, predDf)
 
-# Prediction on validation data
+# Testing errors
+sqrt(sum((pred_1 - testing$wage)^2))
+sqrt(sum((pred_2 - testing$wage)^2))
+sqrt(sum((predComb - testing$wage)^2))
+
+
+## Prediction on validation data
 pred_1V <- predict(mod_1, validation)
 pred_2V <- predict(mod_2, validation)
 predDfV <- data.frame(pred_1 = pred_1V, pred_2 = pred_2V)
 # ^don't have to include "wage" because only predicting (not model-building)
 predCombV <- predict(modComb, predDfV)
 qplot(predCombV, wage, data = validation)
+
+# Validation errors
+sqrt(sum((pred_1V - validation$wage)^2))
+sqrt(sum((pred_2V - validation$wage)^2))
+sqrt(sum((predCombV - validation$wage)^2))
+
 
