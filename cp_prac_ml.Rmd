@@ -1,0 +1,138 @@
+---
+title: "08 Practical ML - Course Project"
+author: "Joe Nguyen"
+date: "21 November 2015"
+output: html_document
+---
+
+```{r, echo=FALSE}
+# Change working directory
+dirBase <- "/home/joe/Documents/01-coursera/01-data-science"
+dirWorking <- "/08-practical-ml"
+setwd(file.path(dirBase, dirWorking))
+rm(list = ls())
+# par(mfrow = c(1,2))
+```
+
+
+# Executive Summary
+
+This report aims to address how well people perform exercise activities. Specifically, it analyses data from accelerometers on the belt, forearm, arm and dumbell of six participants performing barbell lifts. The participants were instructed to perform lifts correctly and incorrectly in five different ways.
+
+This report predicts the manner in which participants performed the lift, which is grouped into five classes (A to E). Information regarding the experiment (and classes) can be found at [HAR website](#http://groupware.les.inf.puc-rio.br/har).
+
+First, data preprocessing returns raw measurement data (accelerometer, gyro, magnetometer) from sensors attached to (belt, arm, dumbell, forearm). We then use a classification tree to build a prediction model for exercise classes `classe`, but it provides poor accuracy (approx. 50%). We finally use a random forest model with 3-fold cross validation. The model has approximately 97% accuracy and a 2% out of bag error rate.
+
+
+# Data Preprocessing
+
+```{r, cache=TRUE}
+# Download training and test sets
+if (!dir.exists("./data")) { dir.create("./data") }
+if (!file.exists("./data/pml-training.csv")) {
+    urlTrain <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    urlTest <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    download.file(urlTrain, "./data/pml-training.csv", method = "curl")
+    download.file(urlTest, "./data/pml-testing.csv", method = "curl")
+}
+pmlData <- read.csv("./data/pml-training.csv")
+submission <- read.csv("./data/pml-testing.csv")
+dim(pmlData); dim(submission)
+```
+
+We split the `pmlData` into training and testing sets. Because there is 19622 samples, we subset 30% of the dataset into training data for computational speed (5889 samples).
+
+```{r}
+library(caret); set.seed(12345)
+idxTrain <- createDataPartition(pmlData$classe, p = 0.3, list = FALSE)
+training <- pmlData[idxTrain,]; testing <- pmlData[-idxTrain,]
+dim(training); dim(testing)
+```
+
+We examine the data using `str(training)` and clean the data. Unnecessary variables are removed, factor variables are converted to numeric, and variables with any NA are removed. Many variables with NA, including mean, variance, skewness etc ..., were created by the research data's authors for better feature selection. Instead, we perform machine learning on the raw measurements (Euler angles, acceleration, gyro, magnetometer).
+
+```{r, cache=TRUE}
+options(warn = -1)
+
+clean_data <- function(data) {
+    
+    # Remove unnecessary variables
+    data <- subset(data, select = -c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window, num_window))
+    
+    # Factor to numeric (except "classe" outcome)
+    numVar <- ncol(data)
+    idxRm <- rep(NA, numVar)
+    for (i in 1 : (numVar-1)) {
+        data[i] <- as.numeric(as.character(data[[i]]))
+        
+        # Omit vars will any NA (`table` shows many vars with NA have majority NA: 19216 vs 406)
+        if (any(is.na(data[i]))) { idxRm[i] <- i }
+    }
+    idxRm <- na.omit(idxRm)
+    data <- subset(data, select = -idxRm)
+    return(data)
+}
+
+training <- clean_data(training)
+testing <- clean_data(testing)
+submission <- clean_data(submission)
+```
+
+
+# Exploratory Analysis
+
+We explore using density plots for total acceleration. There is not a strong distinction among the `classe` labels. This property is also observed in the other variables (not plotted here), and suggests an intricate prediction method is required.
+
+```{r, fig.align="center"}
+library(ggplot2); library(gridExtra)
+p1 <- ggplot(data = training, aes(x = total_accel_belt, col = classe)) + 
+    geom_density(size = 2)
+
+p2 <- ggplot(data = training, aes(x = total_accel_arm, col = classe)) + 
+    geom_density(size = 2)
+
+p3 <- ggplot(data = training, aes(x = total_accel_dumbbell, col = classe)) + 
+    geom_density(size = 2)
+
+p4 <- ggplot(data = training, aes(x = total_accel_forearm, col = classe)) + 
+    geom_density(size = 2)
+grid.arrange(p1,p2,p3,p4, ncol = 2)
+```
+
+
+# Model Building
+
+We first use a classification tree with all variables as features to classify outcome `classe`, which contains labels A to E.
+
+```{r}
+modCt <- train(classe ~ ., method = "rpart", data = training)
+modCtFinal <- modCt$finalModel
+
+library(rattle)
+fancyRpartPlot(modCtFinal)
+
+predCt <- predict(modCt, newdata = testing)
+confusionMatrix(testing$classe, predCt)
+```
+
+We get rather lower accuracy (approx. 50%) using classification trees. In particular, class D is never identified. We turn to random forests (RFs) (bagging with trees) with 3-fold cross validation.
+
+```{r, eval=FALSE}
+modRf <- train(classe ~ ., method = "rf", data = training,
+               trControl = trainControl(method = "cv", number = 3),
+               proximity = TRUE)
+modRfFinal <- modRf$finalModel; modRfFinal
+
+# ** Unncessary with RF, but examine anyway since testing set exists **
+predRf <- predict(modRf, newdata = testing)
+confusionMatrix(testing$classe, predRf)
+
+# Prediction on submission set (20 test cases for assignment submission)
+predRfSub <- predict(modRf, newdata = submission)
+```
+
+Note: we have declared `eval=FALSE` here because Rmd has memory issues computing the model.
+
+Nevertheless, our RF model returns approximately 97% accuracy and 2.04% out of bag (OOB) error rate. This strongly suggests our RF model is an accurate predictor. The OOB error rate comes from testing classifiers (trees) on samples from the original training set that are not contained in some of the classifiers (due to bagging). Each classifier is trained on about 2/3 of samples from the training set, leaving 1/3 of samples to be used for testing (cross-validation). The small OOB error rate (approx. 2%) is expected due to high accuracy (97%).
+
+

@@ -61,7 +61,3 @@ pyCnot <- 1 - pnCnot
 pCy <- pyC * pC / (pyC * pC + pyCnot * pCnot)
 pCy * 100
 
-
-
-
-
