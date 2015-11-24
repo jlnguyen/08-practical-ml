@@ -111,7 +111,50 @@ legend("topright", inset = c(0.0,-0.6), covNames,
 
 
 ## Question 4
-# 
+# Load the data on the number of visitors to the instructors blog from here:
+if (!dir.exists("./data")) { dir.create("./data") }
+if (!file.exists("./data/gaData.csv")) {
+    url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/gaData.csv"
+    download.file(url, "./data/gaData.csv", method = "curl")
+}
+# Using the commands:
+library(lubridate)  # For year() function below
+dat <- read.csv("./data/gaData.csv")
+training <- dat[year(dat$date) < 2012,]
+testing <- dat[(year(dat$date)) > 2011,]
+tstrain <- ts(training$visitsTumblr)
+# Fit a model using the bats() function in the forecast package to the training time series. Then forecast this model for the remaining time points. 
+library(forecast)
+modBats <- bats(tstrain)
+fcast <- forecast(modBats, h = length(tstest), level = 95)
+tstest <- ts(testing$visitsTumblr)
+
+plot(fcast)
+lines(testing$date, tstest, col = "red")
+
+# For how many of the testing points is the true value within the 95% prediction interval bounds?
+sum(tstest < fcast$upper & tstest > fcast$lower) / length(tstest) * 100
+sum(tstest <= fcast$upper & tstest >= fcast$lower) / length(tstest) * 100
+# 96%
 
 
+## Question 5
+# Load the concrete data with the commands:
+set.seed(3523)
+library(AppliedPredictiveModeling); library(caret)
+data(concrete)
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+# Set the seed to 325 and fit a support vector machine using the e1071 package to predict Compressive Strength using the default settings. Predict on the testing set. What is the RMSE? 
+set.seed(325); library(e1071)
+modSvm <- svm(CompressiveStrength ~ ., data = training)
+predSvm <- predict(modSvm, testing)
+
+# RMSE
+# INCORRECT
+sqrt( sum((predSvm - testing$CompressiveStrength)^2) )
+
+# CORRECT (ATTEMPT 2)
+sqrt( mean((predSvm - testing$CompressiveStrength)^2) )
 
